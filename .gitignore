@@ -1,0 +1,32 @@
+# 图片文件
+*.png
+*.jpg
+# 音频文件
+*.wav
+# 文本文件
+*.pdf
+*.csv
+*.txt
+*.xls
+*.xlsx
+*.data
+# 其他文件
+*.swp
+*.zip
+*.doc
+*.docx
+*.iml
+*.dot
+*.svg
+*.tmp
+*.m
+*.md
+*.pkl
+/**/*-ubyte*
+/**/*-log*
+*.xml
+*.mat
+# 检查点目录
+/**/.ipynb_checkpoints
+/**/.vscode
+/**/__pycache__
