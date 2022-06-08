@@ -9,18 +9,23 @@ from utils import *
 
 
 def train_and_plot(is_clip=False):
-    all_losses1, period1 = train_rnn(is_clip=is_clip)
-    all_losses2, period2 = train_lstm(is_clip=is_clip)
-    all_losses3, period3 = train_gru(is_clip=is_clip)
-    all_losses = [all_losses1, all_losses2, all_losses3]
+    """训练并绘制损失函数和耗时曲线。
 
-    periods = [period1, period2, period3]
+    Args:
+        is_clip: 是否采用梯度裁剪。
+    """
+    losses, periods = train_models(is_clip=is_clip)
+    # all_losses1, period1 = train_rnn(is_clip=is_clip)
+    # all_losses2, period2 = train_lstm(is_clip=is_clip)
+    # all_losses3, period3 = train_gru(is_clip=is_clip)
+    # all_losses = [all_losses1, all_losses2, all_losses3]
+    # periods = [period1, period2, period3]
     model_names = ['RNN', 'LSTM', 'GRU']
 
     # 绘制损失函数曲线
-    plot_loss_curve(all_losses, model_names, with_clip=is_clip)
+    plot_loss_curve(losses, model_names, with_clip=is_clip)
     # 绘制训练耗时柱状图
-    plot_bar(periods, model_names, with_clip=is_clip)
+    plot_bar(model_names, periods, with_clip=is_clip)
 
 
 def plot_loss_curve(losses, model_names, with_clip=False):

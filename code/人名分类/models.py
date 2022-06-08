@@ -3,7 +3,7 @@ import torch.nn as nn
 from utils import grad_clipping
 
 class RNN(nn.Module):
-    def __init__(self, input_size, hidden_size, output_size, num_layers=1, criterion=nn.NLLLoss()):
+    def __init__(self, input_size, hidden_size, output_size, num_layers=1, criterion=nn.NLLLoss(), optimizer=None):
         super(RNN, self).__init__()
 
         self.input_size = input_size
@@ -20,6 +20,7 @@ class RNN(nn.Module):
 
         # 其他参数
         self.criterion = criterion
+        self.optimizer = optimizer
 
     def forward(self, input, hidden):
         """
@@ -102,7 +103,7 @@ class RNN(nn.Module):
 
 
 class LSTM(nn.Module):
-    def __init__(self, input_size, hidden_size, output_size, num_layers=1, criterion=nn.NLLLoss()):
+    def __init__(self, input_size, hidden_size, output_size, num_layers=1, criterion=nn.NLLLoss(), optimizer=None):
         super(LSTM, self).__init__()
 
         self.input_size = input_size
@@ -116,8 +117,9 @@ class LSTM(nn.Module):
         self.linear = nn.Linear(hidden_size, output_size)
         # 实例化nn.Softmax层，用于从输出层中获取类别结果
         self.softmax = nn.Softmax(dim=-1)
-        # 损失函数
+        # 其他参数
         self.criterion = criterion
+        self.optimizer = optimizer
 
     def forward(self, input, hidden, c):
         """
@@ -199,7 +201,7 @@ class LSTM(nn.Module):
         return output, loss.item()
 
 class GRU(nn.Module):
-    def __init__(self, input_size, hidden_size, output_size, num_layers=1, criterion=nn.NLLLoss()):
+    def __init__(self, input_size, hidden_size, output_size, num_layers=1, criterion=nn.NLLLoss(), optimizer=None):
         super(GRU, self).__init__()
 
         self.input_size = input_size
@@ -214,8 +216,9 @@ class GRU(nn.Module):
         # 实例化nn.Softmax层，用于从输出层中获取类别结果
         self.softmax = nn.Softmax(dim=-1)
 
-        # 损失函数
+        # 其他参数
         self.criterion = criterion
+        self.optimizer = optimizer
 
     def forward(self, input, hidden):
         """

@@ -1,0 +1,3 @@
+# 模型结构
+structure_params:
+  input_size = n_letters
