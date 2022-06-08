@@ -22,7 +22,7 @@ def get_best_category_from_output(output):
     # 从top_i对象中取出索引的值
     category_i = top_i[0].item()
     # 根据索引值获取对应语言类别，返回语言类别和索引值
-    print('(all_categories[category_i], category_i):', all_categories[category_i], category_i)
+    # print('(all_categories[category_i], category_i):', all_categories[category_i], category_i)
     return all_categories[category_i], category_i
 
 def make_random_sample():
@@ -71,12 +71,12 @@ def time_since(since):
 def create_test_data(num_samples):
     """创建随机产生的测试集。"""
     categories = []
-    lines = []
+    names = []
     for i in range(num_samples):
-        category, line, category_tensor, line_tensor = make_random_sample()
+        category, name, category_tensor, name_tensor = make_random_sample()
         categories.append(category)
-        lines.append(line)
-    return categories, lines
+        names.append(name)
+    return categories, names
 
 def load_config(config_file_path):
     """加载神经网络配置文件。

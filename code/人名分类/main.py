@@ -14,7 +14,7 @@ def train_and_plot(is_clip=False):
     Args:
         is_clip: 是否采用梯度裁剪。
     """
-    losses, periods = train_models(is_clip=is_clip)
+    losses, periods, accuracies = train_models(is_clip=is_clip)
     # all_losses1, period1 = train_rnn(is_clip=is_clip)
     # all_losses2, period2 = train_lstm(is_clip=is_clip)
     # all_losses3, period3 = train_gru(is_clip=is_clip)
@@ -22,36 +22,63 @@ def train_and_plot(is_clip=False):
     # periods = [period1, period2, period3]
     model_names = ['RNN', 'LSTM', 'GRU']
 
+    # # 绘制损失函数曲线
+    # plot_loss_curve(losses, model_names, with_clip=is_clip)
     # 绘制损失函数曲线
-    plot_loss_curve(losses, model_names, with_clip=is_clip)
+    plot_curve(losses, model_names, with_clip=is_clip, plot_info='loss')
+    # 绘制准确率曲线
+    plot_curve(accuracies, model_names, with_clip=is_clip, plot_info='accuracy')
     # 绘制训练耗时柱状图
     plot_bar(model_names, periods, with_clip=is_clip)
 
 
-def plot_loss_curve(losses, model_names, with_clip=False):
+# def plot_loss_curve(losses, model_names, with_clip=False):
+#     """绘制模型损失值随epoch变化的曲线。
+#
+#     Args:
+#         losses: 一个列表，每个元素对应了一个模型的损失函数值列表。
+#         model_names：一个列表，每个元素对应了一个模型名称。
+#         with_clip: 是否采用了梯度裁剪，如果采用了，标题就是'loss curve with clipping'，否则就是'loss curve without clipping'。
+#     """
+#     for idx in range(len(losses)):
+#         plt.figure(0)
+#         plt.plot(losses[idx], label=model_names[idx])
+#
+#     plt.legend(loc='upper left')
+#
+#     # 标题设置
+#     if with_clip:
+#         plt.title('loss curve with clipping')
+#         plt.savefig('loss_curve_clip')
+#     else:
+#         plt.title('loss curve without clipping')
+#         plt.savefig('loss_curve_no_clip')
+#
+#     plt.show()
+
+def plot_curve(datas, model_names, plot_info='loss', with_clip=False):
     """绘制模型损失值随epoch变化的曲线。
 
     Args:
-        losses: 一个列表，每个元素对应了一个模型的损失函数值列表。
+        datas: 一个列表，每个元素对应了一个模型的数据值列表。
         model_names：一个列表，每个元素对应了一个模型名称。
-        with_clip: 是否采用了梯度裁剪，如果采用了，标题就是'loss curve with clipping'，否则就是'loss curve without clipping'。
+        with_clip: 是否采用了梯度裁剪，如果采用了，标题就是'plot_info curve with clipping'，否则就是'plot_info curve without clipping'。
     """
-    for idx in range(len(losses)):
+    for idx in range(len(datas)):
         plt.figure(0)
-        plt.plot(losses[idx], label=model_names[idx])
+        plt.plot(datas[idx], label=model_names[idx])
 
     plt.legend(loc='upper left')
 
     # 标题设置
     if with_clip:
-        plt.title('loss curve with clipping')
-        plt.savefig('loss_curve_clip')
+        plt.title(f'{plot_info} curve with clipping')
+        plt.savefig(f'./imgs/{plot_info}curve_clip')
     else:
-        plt.title('loss curve without clipping')
-        plt.savefig('loss_curve_no_clip')
+        plt.title(f'{plot_info} curve without clipping')
+        plt.savefig(f'./imgs/{plot_info}_curve_no_clip')
 
     plt.show()
-
 
 def plot_total_roc_curve(y_test, y_probs: np.ndarray, model_names):
     """绘制总的ROC曲线"""
@@ -95,10 +122,10 @@ def plot_bar(x_data, y_data, with_clip=False):
     # 绘制训练耗时对比柱状图
     if with_clip:
         plt.title('loss curve with clipping')
-        plt.savefig('bar_plot_clip')
+        plt.savefig('./imgs/bar_plot_clip')
     else:
         plt.title('loss curve without clipping')
-        plt.savefig('bar_plot_no_clip')
+        plt.savefig('./imgs/bar_plot_no_clip')
     plt.bar(range(len(x_data)), y_data, tick_label=x_data)
     plt.show()
 
