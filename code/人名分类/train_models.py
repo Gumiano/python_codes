@@ -1,3 +1,5 @@
+import torch.nn.functional
+
 from models import *
 from utils import *
 from preprocessing import n_letters, n_categories
@@ -8,7 +10,8 @@ n_hidden = 128
 output_size = n_categories
 
 # 评价函数
-criterion = nn.CrossEntropyLoss()
+# criterion = nn.CrossEntropyLoss()
+criterion = nn.NLLLoss()
 
 # 训练参数
 lr = 0.001  # 学习率
@@ -18,17 +21,37 @@ plot_every = 1000  # 每训练1000次，计算一次训练平均误差
 
 
 def rnn_step_one_epoch(rnn, optimizer, category_tensor, name_tensor, clip=False):
-    rnn.zero_grad()  # 将rnn网络梯度清零
-    hidden = rnn.initHidden()  # 只对姓名的第一字母构建起hidden参数
+    """使用RNN模型训练一个Epoch的数据。
 
-    # 对姓名的每一个字母逐次学习规律。每次循环的得到的hidden参数传入下次rnn网络中
+    这里的一个Epoch对应了一个名字。
+    损失函数的计算方法是：Softmax -> Log -> NLLLoss，可以直接采用log_softmax函数，但先softmax是为了后面方便直接得到概率。
+
+    Args:
+        rnn: RNN模型。
+        optimizer: 损失函数优化器。
+        category_tensor: 名字对应的类别索引所构成的张量。
+        name_tensor: one-hot后的名字张量。
+        clip: 是否进行梯度裁剪。
+    """
+    # print('category_tensor.size():', category_tensor.size())
+    # print('name_tensor.size():', name_tensor.size())
+
+    # 梯度清零
+    rnn.zero_grad()
+    # hidden_layer的初始参数
+    hidden = rnn.init_hidden()
+    # 对每个字母进行学习，time_step=1，将最终的hidden参数传递给下一个名字进行训练，将最终的output作为对该名字在训练阶段的预测结果。
     for i in range(name_tensor.size()[0]):
+        # output是由每个类别上的预测概率构成的三维张量(Softmax)
         output, hidden = rnn(name_tensor[i], hidden)
 
-    # 比较最终输出结果与 该姓名真实所属语言，计算训练误差
-    loss = criterion(output.squeeze(0), category_tensor)
+    # 计算log_softmax
+    output = torch.log(output)
 
-    # 将比较后的结果反向传播给整个网络
+    # 计算训练误差
+    loss = criterion(output.squeeze(0), category_tensor)  # 自动对类别进行one-hot
+
+    # 反向传播，更新梯度
     loss.backward()
 
     # 梯度裁剪, theta=1
@@ -38,7 +61,7 @@ def rnn_step_one_epoch(rnn, optimizer, category_tensor, name_tensor, clip=False)
     # 调整网络参数。
     optimizer.step()
 
-    # 返回预测结果  和 训练误差
+    # 返回预测结果和训练误差
     return output, loss.item()
 
 
@@ -51,16 +74,15 @@ def train_rnn(is_clip=False):
 
     # 训练开始时间点
     start = time.time()
-
     for epoch in range(1, n_epochs + 1):
         # 随机的获取训练数据name和对应的language
-        category, name, category_tensor, name_tensor = randomTrainingExample()
+        category, name, category_tensor, name_tensor = make_random_sample()
         output, loss = rnn_step_one_epoch(rnn, optimizer, category_tensor, name_tensor, clip=is_clip)
         current_loss += loss
 
         # 每训练5000次，预测一个姓名，并打印预测情况
         if epoch % print_every == 0:
-            guess, guess_i = categoryFromOutput(output)
+            guess, guess_i = get_best_category_from_output(output)
             correct = '✓' if guess == category else '✗ (%s)' % category
             print('%d %d%% (%s) %.4f %s / %s %s' % (
             epoch, epoch / n_epochs * 100, time_since(start), loss, name, guess, correct))
@@ -80,17 +102,33 @@ def train_rnn(is_clip=False):
 
 
 def lstm_step_one_epoch(lstm: LSTM, optimizer, category_tensor, name_tensor, clip=False):
-    lstm.zero_grad()  # 将rnn网络梯度清零
-    hidden, c = lstm.initHiddenAndC()  # 只对姓名的第一字母构建起hidden参数
+    """使用LSTM模型训练一个Epoch的数据。
 
-    # 对姓名的每一个字母逐次学习规律。每次循环的得到的hidden参数传入下次rnn网络中
+    这里的一个Epoch对应了一个名字。
+    损失函数的计算方法是：Softmax -> Log -> NLLLoss，可以直接采用log_softmax函数，但先softmax是为了后面方便直接得到概率。
+
+    Args:
+        optimizer: 损失函数优化器。
+        category_tensor: 名字对应的类别索引所构成的张量。
+        name_tensor: one-hot后的名字张量。
+        clip: 是否进行梯度裁剪。
+    """
+    # 梯度清零
+    lstm.zero_grad()
+    # hidden_layer的初始参数
+    hidden, c = lstm.init_hidden_and_c()
+    # 对每个字母进行学习，time_step=1，将最终的hidden参数传递给下一个名字进行训练，将最终的output作为对该名字在训练阶段的预测结果。
     for i in range(name_tensor.size()[0]):
+        # output是由每个类别上的预测概率构成的三维张量(Softmax)
         output, hidden, c = lstm(name_tensor[i], hidden, c)
 
-    # 比较最终输出结果与 该姓名真实所属语言，计算训练误差
-    loss = criterion(output.squeeze(0), category_tensor)
+    # 计算log_softmax
+    output = torch.log(output)
 
-    # 将比较后的结果反向传播给整个网络
+    # 计算训练误差
+    loss = criterion(output.squeeze(0), category_tensor)  # 自动对类别进行one-hot
+
+    # 反向传播，更新梯度
     loss.backward()
 
     # 梯度裁剪, theta=1
@@ -100,22 +138,41 @@ def lstm_step_one_epoch(lstm: LSTM, optimizer, category_tensor, name_tensor, cli
     # 调整网络参数。
     optimizer.step()
 
-    # 返回预测结果  和 训练误差
+    # 返回预测结果和训练误差
     return output, loss.item()
 
 
 def gru_step_one_epoch(gru, optimizer, category_tensor, name_tensor, clip=False):
-    gru.zero_grad()  # 将rnn网络梯度清零
-    hidden = gru.initHidden()  # 只对姓名的第一字母构建起hidden参数
+    """使用RNN模型训练一个Epoch的数据。
 
-    # 对姓名的每一个字母逐次学习规律。每次循环的得到的hidden参数传入下次rnn网络中
+    这里的一个Epoch对应了一个名字。
+    损失函数的计算方法是：Softmax -> Log -> NLLLoss，可以直接采用log_softmax函数，但先softmax是为了后面方便直接得到概率。
+
+    Args:
+        optimizer: 损失函数优化器。
+        category_tensor: 名字对应的类别索引所构成的张量。
+        name_tensor: one-hot后的名字张量。
+        clip: 是否进行梯度裁剪。
+    """
+    # print('category_tensor.size():', category_tensor.size())
+    # print('name_tensor.size():', name_tensor.size())
+
+    # 梯度清零
+    gru.zero_grad()
+    # hidden_layer的初始参数
+    hidden = gru.init_hidden()
+    # 对每个字母进行学习，time_step=1，将最终的hidden参数传递给下一个名字进行训练，将最终的output作为对该名字在训练阶段的预测结果。
     for i in range(name_tensor.size()[0]):
+        # output是由每个类别上的预测概率构成的三维张量(Softmax)
         output, hidden = gru(name_tensor[i], hidden)
 
-    # 比较最终输出结果与 该姓名真实所属语言，计算训练误差
-    loss = criterion(output.squeeze(0), category_tensor)
+    # 计算log_softmax
+    output = torch.log(output)
 
-    # 将比较后的结果反向传播给整个网络
+    # 计算训练误差
+    loss = criterion(output.squeeze(0), category_tensor)  # 自动对类别进行one-hot
+
+    # 反向传播，更新梯度
     loss.backward()
 
     # 梯度裁剪, theta=1
@@ -125,7 +182,7 @@ def gru_step_one_epoch(gru, optimizer, category_tensor, name_tensor, clip=False)
     # 调整网络参数。
     optimizer.step()
 
-    # 返回预测结果  和 训练误差
+    # 返回预测结果和训练误差
     return output, loss.item()
 
 
@@ -141,13 +198,13 @@ def train_lstm(is_clip=False):
 
     for epoch in range(1, n_epochs + 1):
         # 随机的获取训练数据name和对应的language
-        category, name, category_tensor, name_tensor = randomTrainingExample()
+        category, name, category_tensor, name_tensor = make_random_sample()
         output, loss = lstm_step_one_epoch(lstm, optimizer, category_tensor, name_tensor, clip=is_clip)
         current_loss += loss
 
         # 每训练5000次，预测一个姓名，并打印预测情况
         if epoch % print_every == 0:
-            guess, guess_i = categoryFromOutput(output)
+            guess, guess_i = get_best_category_from_output(output)
             correct = '✓' if guess == category else '✗ (%s)' % category
             print('%d %d%% (%s) %.4f %s / %s %s' % (
             epoch, epoch / n_epochs * 100, time_since(start), loss, name, guess, correct))
@@ -177,13 +234,13 @@ def train_gru(is_clip=False):
 
     for epoch in range(1, n_epochs + 1):
         # 随机的获取训练数据name和对应的language
-        category, name, category_tensor, name_tensor = randomTrainingExample()
+        category, name, category_tensor, name_tensor = make_random_sample()
         output, loss = gru_step_one_epoch(gru, optimizer, category_tensor, name_tensor, clip=is_clip)
         current_loss += loss
 
         # 每训练5000次，预测一个姓名，并打印预测情况
         if epoch % print_every == 0:
-            guess, guess_i = categoryFromOutput(output)
+            guess, guess_i = get_best_category_from_output(output)
             correct = '✓' if guess == category else '✗ (%s)' % category
             print('%d %d%% (%s) %.4f %s / %s %s' % (
             epoch, epoch / n_epochs * 100, time_since(start), loss, name, guess, correct))

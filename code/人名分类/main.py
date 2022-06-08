@@ -24,22 +24,27 @@ def train_and_plot(is_clip=False):
 
 
 def plot_loss_curve(losses, model_names, with_clip=False):
-    """
-    绘制模型损失值随epoch的变化曲线
+    """绘制模型损失值随epoch变化的曲线。
 
-    losses 是多个模型的损失值列表
-    model_names 是对应模型的名称
+    Args:
+        losses: 一个列表，每个元素对应了一个模型的损失函数值列表。
+        model_names：一个列表，每个元素对应了一个模型名称。
+        with_clip: 是否采用了梯度裁剪，如果采用了，标题就是'loss curve with clipping'，否则就是'loss curve without clipping'。
     """
     for idx in range(len(losses)):
         plt.figure(0)
         plt.plot(losses[idx], label=model_names[idx])
+
     plt.legend(loc='upper left')
+
+    # 标题设置
     if with_clip:
         plt.title('loss curve with clipping')
         plt.savefig('loss_curve_clip')
     else:
         plt.title('loss curve without clipping')
         plt.savefig('loss_curve_no_clip')
+
     plt.show()
 
 
@@ -71,9 +76,11 @@ def plot_total_roc_curve(y_test, y_probs: np.ndarray, model_names):
     plt.savefig('all_roc_curve')
     plt.show()
 
+
 def plot_single_class_roc_curve(y_test, y_probs: np.ndarray, model_name):
     """针对每个类别绘制ROC曲线"""
     pass
+
 
 def plot_bar(x_data, y_data, with_clip=False):
     """
@@ -90,23 +97,34 @@ def plot_bar(x_data, y_data, with_clip=False):
     plt.bar(range(len(x_data)), y_data, tick_label=x_data)
     plt.show()
 
+
 def load_models():
-    rnn = RNN(input_size, n_hidden, output_size)
-    rnn.load_state_dict(torch.load('./model/model_rnn.pth'))
-    lstm = LSTM(input_size, n_hidden, output_size)
-    lstm.load_state_dict(torch.load('./model/model_lstm.pth'))
-    gru = GRU(input_size, n_hidden, output_size)
-    gru.load_state_dict(torch.load('./model/model_gru.pth'))
-    return rnn, lstm, gru
+    """预加载已训练好的模型参数，返回已经加载好参数的模型列表。
+    """
+    model_names = ['rnn', 'lstm', 'gru']
+    models = [RNN(input_size, n_hidden, output_size),  # RNN
+              LSTM(input_size, n_hidden, output_size),  # LSTM
+              GRU(input_size, n_hidden, output_size),  # GRU
+              ]
+
+    for idx, model_name in enumerate(model_names):
+        # 将已经训练好的参数从文件加载到模型中
+        models[idx].load_state_dict(torch.load(f'./model/model_{model_name}.pth'))
+    return models
 
 
-def evaluateRNN(rnn, line_tensor):
-    """line_tensor代表名字的张量表示"""
+def evaluateRNN(rnn, name_tensor):
+    """返回模型对一个名字预测得到的类别张量。
+
+    Args:
+        rnn: RNN模型
+        name_tensor: 用于预测的one-hot后的名字张量
+    """
     # 初始化一个隐含层张量
-    hidden = rnn.initHidden()
+    hidden = rnn.init_hidden()
     # 将评估数据的每个字符逐个传入RNN中
-    for i in range(line_tensor.size()[0]):
-        output, hidden = rnn(line_tensor[i], hidden)
+    for i in range(name_tensor.size()[0]):
+        output, hidden = rnn(name_tensor[i], hidden)
     # 返回整个RNN的输出output
     return output.squeeze(0)
 
@@ -114,7 +132,7 @@ def evaluateRNN(rnn, line_tensor):
 def evaluateLSTM(lstm, line_tensor):
     """line_tensor代表名字的张量表示"""
     # 初始化一个隐含层张量
-    hidden, c = lstm.initHiddenAndC()
+    hidden, c = lstm.init_hidden_and_c()
     # 将评估数据的每个字符逐个传入RNN中
     for i in range(line_tensor.size()[0]):
         output, hidden, c = lstm(line_tensor[i], hidden, c)
@@ -125,7 +143,7 @@ def evaluateLSTM(lstm, line_tensor):
 def evaluateGRU(gru, line_tensor):
     """line_tensor代表名字的张量表示"""
     # 初始化一个隐含层张量
-    hidden = gru.initHidden()
+    hidden = gru.init_hidden()
     # 将评估数据的每个字符逐个传入RNN中
     for i in range(line_tensor.size()[0]):
         output, hidden = gru(line_tensor[i], hidden)
@@ -134,7 +152,7 @@ def evaluateGRU(gru, line_tensor):
 
 
 def predict(model, input_line, evaluate, n_predictions=3):
-    """ 预测函数
+    """预测函数
         输入参数input_line代表输入的名字
         n_predictions代表最优可能的top_n个国家
     """
@@ -144,7 +162,7 @@ def predict(model, input_line, evaluate, n_predictions=3):
     # 在模型预测时不能够更新模型参数
     with torch.no_grad():
         # 将输入名字转换为张量表示，并获取预测输出
-        output = evaluate(model, lineToTensor(input_line))
+        output = evaluate(model, name_to_tensor(input_line))
         # 样本预测在各个类别的概率分布
         probs = output.squeeze().numpy()
 
@@ -178,24 +196,32 @@ def acc(test_y, pred_y):
     return accuracy
 
 
-def get_predictions(model, lines, eval_func):
-    """
-    返回模型在测试集上的预测结果
-    test_data 形如[categories, lines]
+def get_predictions(model, names, eval_func):
+    """返回模型在测试集上的预测结果。
+
+    Args:
+        model:
+        test_data 形如[categories, lines]
     """
     pred = []
     probs = []
-    num_samples = len(lines)
+    num_samples = len(names)
     for i in range(num_samples):
-        out = predict(model, lines[i], eval_func, n_predictions=1)
+        out = predict(model, names[i], eval_func, n_predictions=1)
         probs.append(out[1])
         pred.append(out[0][0][1])
     return pred, probs
 
 
 def plot_confusion_matrix(y_test, y_pred, model_name):
-    """ 绘制混淆矩阵 """
-    plt.figure(figsize=(16, 9), dpi=100)
+    """绘制单个模型预测结果的混淆矩阵。
+
+    Args:
+        y_test: 测试集标签。
+        y_pred: 模型在测试集上的预测类别。
+        model_name: 模型名称。
+    """
+    plt.figure(figsize=(16, 9), dpi=100)  # 调整图像大小
     cm = confusion_matrix(y_test, y_pred, labels=all_categories)
     cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
     np.set_printoptions(formatter={'float': '{: 0.2f}'.format})
@@ -219,14 +245,16 @@ def plot_confusion_matrix(y_test, y_pred, model_name):
     plt.show()
 
 
-def eval_predictions(y_test, y_preds, y_probs, model_names, y_scores=None):
+def eval_predictions(y_test, y_preds, y_probs, model_names):
+    """对训练好的模型进行统一评估。
+
+    Args:
+        y_test: 测试集标签。
+        y_preds: 一个列表，每个元素对应了一个模型在测试集上的预测类别。
+        y_probs: 一个列表，每个元素对应了一个模型在测试集上每个样本在各个类别的预测概率
+        model_names: 一个列表，每个元素对应了一个用到的模型名称
     """
-    y_test 测试集标签
-    y_preds 测试集上的预测类别
-    y_probs 测试集每个样本在各个类被上的预测概率
-    model_names 预测所采用的模型名称
-    """
-    accuracies = []
+    accuracies = []  # 记录每个模型的准确率
     # 对每个模型
     for i in range(len(model_names)):
         # 绘制混淆矩阵
