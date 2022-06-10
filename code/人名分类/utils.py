@@ -3,7 +3,6 @@ import torch
 import time
 import math
 import torch.nn as nn
-import yaml
 
 from preprocessing import all_categories, category_names, name_to_tensor
 

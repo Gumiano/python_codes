@@ -4,18 +4,15 @@ from models import *
 from utils import *
 from preprocessing import n_letters, n_categories
 
-# 模型参数
-input_size = n_letters
-n_hidden = 128
-output_size = n_categories
-
-# 评价函数
+# 损失函数
 criterion = nn.NLLLoss()
 
 # 模型参数
 input_size = n_letters
 n_hidden = 128
 output_size = n_categories
+
+
 def train_models(is_clip=False):
     """统一训练多个循环神经网络模型。
 
@@ -33,20 +30,23 @@ def train_models(is_clip=False):
               LSTM(input_size, n_hidden, output_size),  # LSTM
               GRU(input_size, n_hidden, output_size),  # GRU
               ]
+    # [print(model) for model in models]
 
     # 统一添加优化器
     n_models = len(model_names)
     losses = [[] for _ in range(n_models)]
     periods = [[] for _ in range(n_models)]
     accuracies = [[] for _ in range(n_models)]
-    train_accuracies = [[] for _ in range(n_models)]
+    max_accuracies = [None for _ in range(n_models)]
     for idx, model in enumerate(models):
-        optimizer = torch.optim.Adam(params=model.parameters(), lr=lr)
+        # optimizer = torch.optim.Adam(params=model.parameters(), lr=lr, beta1=0.9, beta2=0.999, epsilon=1e-8)
+        optimizer = torch.optim.Adam(params=model.parameters(), lr=lr, betas=[0.9, 0.999], eps=1e-8)
         # 记录每个模型的训练误差
         current_loss = 0  # 初始误差为0
-        current_accuracy = 0 # 初始准确率为0
+        current_accuracy = 0  # 初始准确率为0
         all_losses = []  # 记录平均误差
-        all_accuracies = [] # 记录平均准确率
+        all_accuracies = []  # 记录平均准确率
+        max_accuracy = 0  # 记录训练过程最高准确率
 
         # 训练开始时间点
         start = time.time()
@@ -67,12 +67,16 @@ def train_models(is_clip=False):
                 correct = '✓' if is_correct else '✗ (%s)' % category
                 print('%d %d%% (%s) %.4f %s / %s %s mean accuracy:%.4f' % (
                     # epoch, epoch / n_epochs * 100, time_since(start), loss, name, guess, correct, ))
-                    epoch, epoch / n_epochs * 100, time_since(start), current_loss/print_every, name, guess, correct, current_accuracy/print_every))
+                    epoch, epoch / n_epochs * 100, time_since(start), current_loss / print_every, name, guess, correct,
+                    current_accuracy / print_every))
 
             # 每训练plot_every次，计算一个训练平均误差和一个准确率，方便后面可视化误差曲线图
             if epoch % plot_every == 0:
                 all_losses.append(current_loss / plot_every)
                 all_accuracies.append(current_accuracy / plot_every)
+                if (current_accuracy / plot_every) > max_accuracy:
+                    max_accuracy = current_accuracy / plot_every
+                max_accuracies[idx] = max_accuracy
                 # 重置
                 current_loss = 0
                 current_accuracy = 0
@@ -86,5 +90,4 @@ def train_models(is_clip=False):
         periods[idx] = int(time.time() - start)
         accuracies[idx].extend(all_accuracies)
 
-
-    return losses, periods, accuracies
+    return losses, periods, accuracies, max_accuracies
