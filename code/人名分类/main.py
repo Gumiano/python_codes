@@ -7,6 +7,7 @@ from sklearn.preprocessing import label_binarize
 from train_models import *
 from utils import *
 
+plt.rcParams['font.sans-serif'] = ['KaiTi']
 
 def train_and_plot(is_clip=False):
     """训练并绘制损失函数和耗时曲线。
@@ -44,14 +45,14 @@ def plot_curve(datas, model_names, plot_info='loss', with_clip=False):
     # 标题设置
     if with_clip:
         plt.title(f'{plot_info} curve with clipping')
-        plt.savefig(f'./imgs/{plot_info}_curve_clip')
+        plt.savefig(f'./imgs/{plot_info}_curve_clip', bbox_inches='tight')
     else:
         plt.title(f'{plot_info} curve without clipping')
-        plt.savefig(f'./imgs/{plot_info}_curve_no_clip')
+        plt.savefig(f'./imgs/{plot_info}_curve_no_clip', bbox_inches='tight')
 
     plt.show()
 
-def plot_total_roc_curve(y_test, y_probs: np.ndarray, model_names):
+def plot_total_roc_curve(y_test, y_probs: np.ndarray, model_names, clip=False):
     """绘制总的ROC曲线"""
     for i in range(len(model_names)):
         y_one_hot = label_binarize(y_test, classes=all_categories)
@@ -75,8 +76,13 @@ def plot_total_roc_curve(y_test, y_probs: np.ndarray, model_names):
     plt.ylabel('True Positive Rate', fontsize=13)
     plt.grid(visible=True, ls=':')
     plt.legend(loc='lower right', fancybox=True, framealpha=0.8, fontsize=12)
-    plt.title(f'ROC曲线', fontsize=17)
-    plt.savefig('all_roc_curve')
+    if clip:
+        plt.title(f'ROC曲线_with_clip', fontsize=17)
+        plt.savefig('all_roc_curve_with_clip', bbox_inches='tight')
+    else:
+        plt.title(f'ROC曲线', fontsize=17)
+        plt.savefig('all_roc_curve', bbox_inches='tight')
+
     plt.show()
 
 
@@ -93,10 +99,10 @@ def plot_bar(x_data, y_data, with_clip=False, plot_info='time_elapse'):
     plt.bar(range(len(x_data)), y_data, tick_label=x_data)
     if with_clip:
         plt.title(f'{plot_info} bar plot with clipping')
-        plt.savefig(f'./imgs/bar_plot_{plot_info}_clip')
+        plt.savefig(f'./imgs/bar_plot_{plot_info}_clip', bbox_inches='tight')
     else:
         plt.title(f'{plot_info} bar plot without clipping')
-        plt.savefig(f'./imgs/bar_plot_{plot_info}_no_clip')
+        plt.savefig(f'./imgs/bar_plot_{plot_info}_no_clip', bbox_inches='tight')
     plt.show()
 
 
@@ -114,46 +120,7 @@ def load_models():
         models[idx].load_state_dict(torch.load(f'./model/model_{model_name}.pth'))
     return models
 
-
-def evaluateRNN(rnn, name_tensor):
-    """返回模型对一个名字预测得到的类别张量。
-
-    Args:
-        rnn: RNN模型
-        name_tensor: 用于预测的one-hot后的名字张量
-    """
-    # 初始化一个隐含层张量
-    hidden = rnn.init_hidden()
-    # 将评估数据的每个字符逐个传入RNN中
-    for i in range(name_tensor.size()[0]):
-        output, hidden = rnn(name_tensor[i], hidden)
-    # 返回整个RNN的输出output
-    return output.squeeze(0)
-
-
-def evaluateLSTM(lstm, line_tensor):
-    """line_tensor代表名字的张量表示"""
-    # 初始化一个隐含层张量
-    hidden, c = lstm.init_hidden_and_c()
-    # 将评估数据的每个字符逐个传入RNN中
-    for i in range(line_tensor.size()[0]):
-        output, hidden, c = lstm(line_tensor[i], hidden, c)
-    # 返回整个RNN的输出output
-    return output.squeeze(0)
-
-
-def evaluateGRU(gru, line_tensor):
-    """line_tensor代表名字的张量表示"""
-    # 初始化一个隐含层张量
-    hidden = gru.init_hidden()
-    # 将评估数据的每个字符逐个传入RNN中
-    for i in range(line_tensor.size()[0]):
-        output, hidden = gru(line_tensor[i], hidden)
-    # 返回整个RNN的输出output
-    return output.squeeze(0)
-
-
-def predict(model, input_line, evaluate, n_predictions=3):
+def predict(model, input_line, n_predictions=3):
     """预测函数
         输入参数input_line代表输入的名字
         n_predictions代表最优可能的top_n个国家
@@ -164,7 +131,7 @@ def predict(model, input_line, evaluate, n_predictions=3):
     # 在模型预测时不能够更新模型参数
     with torch.no_grad():
         # 将输入名字转换为张量表示，并获取预测输出
-        output = evaluate(model, name_to_tensor(input_line))
+        output = model.predict_one_name(name_to_tensor(input_line))
         # 样本预测在各个类别的概率分布
         probs = output.squeeze().numpy()
 
@@ -209,7 +176,7 @@ def get_predictions(model, names, eval_func):
     probs = []
     num_samples = len(names)
     for i in range(num_samples):
-        out = predict(model, names[i], eval_func, n_predictions=1)
+        out = predict(model, names[i], n_predictions=1)
         probs.append(out[1])
         pred.append(out[0][0][1])
     return pred, probs
@@ -227,7 +194,7 @@ def plot_confusion_matrix(y_test, y_pred, model_name):
     cm = confusion_matrix(y_test, y_pred, labels=all_categories)
     cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
     np.set_printoptions(formatter={'float': '{: 0.2f}'.format})
-    plt.imshow(cm, cmap=plt.cm.get_cmap('coolwarm'))
+    plt.imshow(cm, cmap=plt.cm.get_cmap('Greys'))
     plt.colorbar()
     plt.title(f'{model_name} Confusion Matrix')
     tick_marks = np.arange(len(all_categories))
@@ -243,11 +210,11 @@ def plot_confusion_matrix(y_test, y_pred, model_name):
     plt.tight_layout()
     plt.xlabel('True labels')
     plt.ylabel('Predicted labels')
-    plt.savefig(f'./imgs/{model_name} Confusion Matrix')
+    plt.savefig(f'./imgs/{model_name} Confusion Matrix', bbox_inches='tight')
     plt.show()
 
 
-def eval_predictions(y_test, y_preds, y_probs, model_names):
+def eval_predictions(y_test, y_preds, y_probs, model_names, clip=False):
     """对训练好的模型进行统一评估。
 
     Args:
@@ -265,16 +232,14 @@ def eval_predictions(y_test, y_preds, y_probs, model_names):
         accuracies.append(acc(y_test, y_preds[i]))
         # 绘制每个模型在每个类别上的ROC曲线
         # plot_roc_curve(y_test, y_probs[i], model_names[i])
-    plot_total_roc_curve(y_test, y_probs, model_names)
+    plot_total_roc_curve(y_test, y_probs, model_names, clip=clip)
     # 绘制准确率的对比柱状图
-    plot_bar(model_names, accuracies)
+    plot_bar(model_names, accuracies, with_clip=clip)
 
 
 def eval_models():
     # 模型名称
     model_names = ['RNN', 'LSTM', 'GRU']
-    # 模型评价函数
-    evaluate_functions = [evaluateRNN, evaluateLSTM, evaluateGRU]
     # 测试集样本数
     num_test_samples = 100
     # 随机创建测试集
@@ -283,10 +248,8 @@ def eval_models():
     predictions = []
     probs = []
     for idx, model in enumerate(load_models()):
-        # 得到评价函数
-        eval_func = evaluate_functions[idx]
         # 获取预测结果
-        prediction, prob = get_predictions(model, lines, eval_func)
+        prediction, prob = get_predictions(model, lines, model.predict_one_name)
         predictions.append(prediction)
         probs.append(np.array(prob))
     # 对预测结果进行评价
@@ -295,4 +258,4 @@ def eval_models():
 
 if __name__ == '__main__':
     # eval_models()
-    train_and_plot(is_clip=False)
+    train_and_plot(is_clip=True)

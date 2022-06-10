@@ -42,7 +42,7 @@ class RNN(nn.Module):
         """
         return torch.zeros(self.num_layers, 1, self.hidden_size)
 
-    def __predict_one_name(self, name_tensor):
+    def predict_one_name(self, name_tensor):
         """预测并返回一个名字所属的语言类别。
 
         Args:
@@ -144,7 +144,7 @@ class LSTM(nn.Module):
         c = hidden = torch.zeros(self.num_layers, 1, self.hidden_size)
         return hidden, c
 
-    def __predict_one_name(self, name_tensor):
+    def predict_one_name(self, name_tensor):
         """预测并返回一个名字所属的语言类别。
 
         Args:
@@ -240,7 +240,7 @@ class GRU(nn.Module):
         """
         return torch.zeros(self.num_layers, 1, self.hidden_size)
 
-    def __predict_one_name(self, name_tensor):
+    def predict_one_name(self, name_tensor):
         """预测并返回一个名字所属的语言类别。
 
         Args:
